@@ -12,7 +12,7 @@ OSTREE_UPDATE_SUMMARY ??= "0"
 BUILD_OSTREE_TARBALL ??= "1"
 
 GARAGE_PUSH_RETRIES ??= "3"
-GARAGE_PUSH_RETRIES_SLEEP ??= "0"
+GARAGE_PUSH_RETRIES_SLEEP ??= "10"
 
 SYSTEMD_USED = "${@oe.utils.ifelse(d.getVar('VIRTUAL-RUNTIME_init_manager') == 'systemd', 'true', '')}"
 
@@ -186,6 +186,12 @@ do_image_garagesign[depends] += "unzip-native:do_populate_sysroot"
 # garage-sign simultaneously for two images often causes problems.
 do_image_garagesign[lockfiles] += "${DEPLOY_DIR_IMAGE}/garagesign.lock"
 IMAGE_CMD:garagesign () {
+    if [ "${GARAGE_PUSH_RETRIES_SLEEP}" -ne "0" ]; then
+        ramdom="$(date +%s%N | cut -b10-19)"
+        sleep="$(expr ${ramdom} % ${GARAGE_PUSH_RETRIES_SLEEP} + 1)"
+        bbdebug 1 "Push to garage repository in ${sleep} seconds"
+        sleep ${sleep}
+    fi
     if [ -n "${SOTA_PACKED_CREDENTIALS}" ]; then
         # if credentials are issued by a server that doesn't support offline signing, exit silently
         unzip -p ${SOTA_PACKED_CREDENTIALS} root.json targets.pub targets.sec tufrepo.url 2>&1 >/dev/null || exit 0
